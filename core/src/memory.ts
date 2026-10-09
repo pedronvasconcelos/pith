@@ -209,8 +209,8 @@ export class Memory extends EventEmitter<MemoryEvents> {
     }
     this.tree.put(l, i, text);
     this.failure = null;
-    this.view.refresh();
-    this.compactView.refresh();
+    this.view.refresh(this.log.count);
+    this.compactView.refresh(this.log.count);
     this.emit("node", l, i);
     this.built.fire();
     // The parent is ready once both siblings exist.

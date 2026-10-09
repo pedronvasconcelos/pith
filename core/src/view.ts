@@ -56,9 +56,13 @@ export class View {
     return merged;
   }
 
-  /** Called when a node is built: its estimated size becomes exact. */
-  refresh(): void {
+  /**
+   * Called when a node is built: its estimated size becomes exact, and a
+   * batch that was waiting on unbuilt parents can finish.
+   */
+  refresh(total: number): void {
     this.recount();
+    if (this.bytes > this.high && this.batch(total) > 0) this.save();
   }
 
   /**

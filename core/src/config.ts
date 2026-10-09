@@ -9,8 +9,8 @@ export const FAKE = process.env.PITH_FAKE === "1";
 /** Max bytes of one tree line. */
 export const LINE_MAX = 512;
 /** The chat view sawtooths between these sizes. */
-export const VIEW_HIGH = 128_000;
-export const VIEW_LOW = 64_000;
+export const VIEW_HIGH = Number(process.env.PITH_VIEW_HIGH ?? 128_000);
+export const VIEW_LOW = Number(process.env.PITH_VIEW_LOW ?? 64_000);
 /** Compactions read a view merged further, so they share caches with each other. */
 export const COMPACT_VIEW_HIGH = 32_000;
 export const COMPACT_VIEW_LOW = 16_000;
