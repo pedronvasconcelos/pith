@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { Agents } from "./agents.ts";
-import { DATA_DIR, FAKE, TURN_MODEL } from "./config.ts";
+import { COMPACT_PROVIDER, DATA_DIR, FAKE, PROVIDER } from "./config.ts";
 import { Memory } from "./memory.ts";
 import { serve } from "./server.ts";
 import { TurnRunner } from "./turn.ts";
@@ -25,7 +25,7 @@ const server = serve({
     // The app reads this line to find the core.
     process.stdout.write(`PITH_READY ${JSON.stringify({ port: p, token: process.env.PITH_TOKEN ? undefined : token })}\n`);
     console.error(
-      `[pith] ${memory.log.count} messages, ${memory.tree.size} nodes · ${FAKE ? "offline" : TURN_MODEL} · ws://127.0.0.1:${p}`,
+      `[pith] ${memory.log.count} messages, ${memory.tree.size} nodes · ${FAKE ? "offline" : `${PROVIDER} turns, ${COMPACT_PROVIDER} memory`} · ws://127.0.0.1:${p}`,
     );
   },
 });

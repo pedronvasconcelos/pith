@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(ChatStore.self) private var store
     @AppStorage("showMemory") private var showMemory = true
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         Group {
@@ -49,6 +50,10 @@ struct ContentView: View {
             }
         }
         .navigationTitle("")
+        .task {
+            // Development: PITH_OPEN_SETTINGS opens Settings at launch.
+            if ProcessInfo.processInfo.environment["PITH_OPEN_SETTINGS"] != nil { openSettings() }
+        }
     }
 }
 
@@ -83,7 +88,9 @@ struct StatusPill: View {
         case "claude-opus-5-5": "Opus 5.5"
         case "claude-sonnet-5-5": "Sonnet 5.5"
         case "claude-fable-5-1": "Fable 5.1"
-        default: id
+        case "gemini-3.8-flash": "Gemini 3.8 Flash"
+        case "gemini-3.1-pro-preview": "Gemini 3.1 Pro"
+        default: store.stats.provider == "codex" ? "ChatGPT · \(id)" : id
         }
     }
 }
@@ -142,8 +149,8 @@ struct OfflineNotice: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "key.fill").foregroundStyle(Theme.heartwood)
-            Text("Sem chave da API, o Pith roda em modo offline.")
-            SettingsLink { Text("Adicionar chave").fontWeight(.semibold) }
+            Text("Sem um provedor conectado, o Pith roda em modo offline.")
+            SettingsLink { Text("Conectar").fontWeight(.semibold) }
                 .buttonStyle(.borderless)
                 .foregroundStyle(Theme.heartwood)
         }

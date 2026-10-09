@@ -63,14 +63,40 @@ final class CoreProcess {
         let token = ProcessInfo.processInfo.environment["PITH_DEV_TOKEN"] ?? (UUID().uuidString + UUID().uuidString)
         env["PITH_TOKEN"] = token
         env["PITH_MODEL"] = settings.model
+        env["PITH_GEMINI_MODEL"] = settings.geminiModel
         env["PITH_EFFORT"] = settings.effort
         env["PITH_WORKSPACE"] = settings.workspace
-        if let key = Keychain.apiKey {
-            env["ANTHROPIC_API_KEY"] = key
+        env["PITH_CODEX_SANDBOX"] = settings.codexWrite ? "workspace-write" : "read-only"
+
+        // Which providers can run: a key in the Keychain, or Codex installed.
+        let anthropic = Keychain[.anthropic] ?? env["ANTHROPIC_API_KEY"]
+        let gemini = Keychain[.gemini] ?? env["GEMINI_API_KEY"]
+        let codex = CodexCLI.path()
+        if let anthropic { env["ANTHROPIC_API_KEY"] = anthropic }
+        if let gemini { env["GEMINI_API_KEY"] = gemini }
+        if let codex { env["PITH_CODEX_PATH"] = codex }
+        if !settings.codexModel.isEmpty {
+            env["PITH_CODEX_MODEL"] = settings.codexModel
+        } else if settings.provider == "codex" || settings.compactProvider == "codex" || settings.helper == "codex",
+                  let first = CodexCLI.models().first {
+            env["PITH_CODEX_MODEL"] = first
+        }
+        let available: [String: Bool] = ["claude": anthropic != nil, "gemini": gemini != nil, "codex": codex != nil]
+
+        env["PITH_PROVIDER"] = settings.provider
+        if available[settings.provider] == true {
             env.removeValue(forKey: "PITH_FAKE")
-        } else if env["ANTHROPIC_API_KEY"] == nil {
+        } else {
             env["PITH_FAKE"] = "1"
         }
+        // Memory: the chosen one, else the cheapest that can run.
+        let compact = settings.compactProvider != "auto" && available[settings.compactProvider] == true
+            ? settings.compactProvider
+            : ["claude", "gemini", "codex"].first { available[$0] == true } ?? settings.provider
+        env["PITH_COMPACT_PROVIDER"] = compact
+        // Hands: Claude Code needs an Anthropic key; Codex needs its CLI.
+        let helper = settings.helper != "auto" ? settings.helper : (anthropic != nil ? "claude-code" : codex != nil ? "codex" : "claude-code")
+        env["PITH_HELPER"] = helper
         p.environment = env
         p.standardInput = stdin
         let out = Pipe(), err = Pipe()

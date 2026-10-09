@@ -44,7 +44,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private static func snapshot(to path: String) {
-        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) else { return }
+        let settings = ProcessInfo.processInfo.environment["PITH_OPEN_SETTINGS"] != nil
+        guard let window = NSApp.windows.first(where: { $0.isVisible && (settings ? ($0.identifier?.rawValue ?? "").localizedCaseInsensitiveContains("settings") : $0.canBecomeMain) })
+        else { return }
         // CGWindowListCreateImage is gone from the SDK but still answers for our own windows.
         typealias Capture = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
         guard let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else { return }

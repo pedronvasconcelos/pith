@@ -2,7 +2,8 @@ import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { FAKE, TOOL_CLIP, WORKSPACE } from "./config.ts";
+import { FAKE, HELPER, TOOL_CLIP, WORKSPACE } from "./config.ts";
+import { codexHelper } from "./providers/codex.ts";
 import { appendLine, clip, readJsonl } from "./util.ts";
 
 export interface AgentEntry {
@@ -35,18 +36,11 @@ export class Agents extends EventEmitter<AgentEvents> {
     super();
     this.dir = path.join(dataDir, "agents");
     fs.mkdirSync(this.dir, { recursive: true });
-    this.seq = fs.readdirSync(this.dir).filter((f) => f.startsWith("Code-")).length;
+    this.seq = fs.readdirSync(this.dir).filter((f) => /^(Code|Codex)-\d+\.jsonl$/.test(f)).length;
   }
 
   log(name: string): string | null {
-    const file = path.join(this.dir, `${path.basename(name)}.jsonl`);
-    if (!fs.existsSync(file)) return null;
-    return clip(
-      readJsonl<AgentEntry>(file)
-        .map((e) => `[${e.kind}] ${e.text}`)
-        .join("\n"),
-      TOOL_CLIP,
-    );
+    return readAgentLog(this.dir, name);
   }
 
   answer(id: string, allow: boolean, always = false): void {
@@ -54,7 +48,7 @@ export class Agents extends EventEmitter<AgentEvents> {
   }
 
   async run(task: string, cwd: string | undefined, signal: AbortSignal): Promise<{ name: string; report: string }> {
-    const name = `Code-${++this.seq}`;
+    const name = `${HELPER === "codex" ? "Codex" : "Code"}-${++this.seq}`;
     const file = path.join(this.dir, `${name}.jsonl`);
     const record = (kind: AgentEntry["kind"], text: string) => {
       const e: AgentEntry = { date: new Date().toISOString(), kind, text };
@@ -68,6 +62,19 @@ export class Agents extends EventEmitter<AgentEvents> {
       const report = `Offline mode: Claude Code was not run for this task.`;
       record("result", report);
       return { name, report };
+    }
+
+    if (HELPER === "codex") {
+      try {
+        const where = cwd && path.isAbsolute(cwd) ? cwd : WORKSPACE;
+        const report = (await codexHelper(task, where, signal, record)) || "(no report)";
+        record("result", report);
+        return { name, report };
+      } catch (err) {
+        const text = signal.aborted ? "Cancelled by the user." : `Codex failed: ${(err as Error).message}`;
+        record("error", text);
+        return { name, report: text };
+      }
     }
 
     const abort = new AbortController();
@@ -127,6 +134,18 @@ export class Agents extends EventEmitter<AgentEvents> {
       this.emit("permission", { id, agent, tool, summary: summarize(input) });
     });
   }
+}
+
+/** A helper run's log, clipped. Helpers are named like Code-3 or Codex-2. */
+export function readAgentLog(agentsDir: string, name: string): string | null {
+  const file = path.join(agentsDir, `${path.basename(name)}.jsonl`);
+  if (!fs.existsSync(file)) return null;
+  return clip(
+    readJsonl<AgentEntry>(file)
+      .map((e) => `[${e.kind}] ${e.text}`)
+      .join("\n"),
+    TOOL_CLIP,
+  );
 }
 
 const READ_ONLY = new Set(["Read", "Glob", "Grep", "LS", "WebSearch", "WebFetch", "TodoWrite", "NotebookRead"]);

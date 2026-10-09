@@ -18,7 +18,8 @@ import { compressTask, mergeTask } from "./prompt.ts";
 import { Stats } from "./stats.ts";
 import { TreeStore, first, key, nodeName, span } from "./tree.ts";
 import { bytes, chunk, clip, Signal } from "./util.ts";
-import { type Ref, View } from "./view.ts";
+import { View } from "./view.ts";
+import { zoomText } from "./zoom.ts";
 
 type Job = { l: number; i: number };
 
@@ -222,21 +223,6 @@ export class Memory extends EventEmitter<MemoryEvents> {
 
   /** zoom(id, n): the whole message for n = 1, else the two halves as lines. */
   zoom(l: number, i: number): string {
-    if (first(l, i) >= this.log.count) return "No such line.";
-    if (l === 0) {
-      const m = this.log.messages[i];
-      return `[${m.i}] ${m.kind}:\n${m.text}`;
-    }
-    const halves: Ref[] = [
-      [l - 1, 2 * i],
-      [l - 1, 2 * i + 1],
-    ];
-    return halves
-      .map(([hl, hi]) => {
-        if (first(hl, hi) >= this.log.count) return null;
-        return this.tree.line(hl, hi) ?? `${nodeName(hl, hi)} (not condensed yet; zoom further)`;
-      })
-      .filter(Boolean)
-      .join("\n");
+    return zoomText(this.log.messages, this.tree, l, i);
   }
 }

@@ -9,8 +9,18 @@ Based on the memory architecture described in [this gist](https://gist.github.co
 - **Log** — every message is appended verbatim to `main/YYYY-MM-DD.jsonl` and never edited.
 - **Tree** — Claude Haiku 5.5 condenses each message into a line of at most 512 bytes, and merges sibling lines into parents, once each.
 - **View** — the lines covering the whole chat, oldest first. Past 128 KB, one batch merges the most due pairs back to 64 KB, so each turn reads ~97% of its prompt from cache.
-- **Turns** — Claude Opus 5.5 gets `[tools][system][view][new message]` in a fresh call. It can `zoom` into any line, down to the whole message.
-- **Hands** — real work on the Mac is delegated to Claude Code (Agent SDK). You approve its actions in the app.
+- **Turns** — the model gets `[tools][system][view][new message]` in a fresh call. It can `zoom` into any line, down to the whole message.
+- **Hands** — real work on the Mac is delegated to Claude Code (Agent SDK, you approve each action) or Codex (works alone inside its sandbox).
+
+## Providers
+
+| | Conversation | Memory | Credentials |
+|---|---|---|---|
+| Claude | Opus 5.5 / Sonnet 5.5 | Haiku 5.5 | Anthropic API key |
+| Gemini | 3.8 Flash / 3.1 Pro | 3.5 Flash-Lite | Gemini API key |
+| ChatGPT | your Codex models | same | your own `codex login` |
+
+ChatGPT runs through OpenAI's official Codex SDK and CLI on your login, so usage counts against your plan. Pith never reads or reuses Codex's tokens; Codex reaches Pith's memory tools through a local, read-only MCP server (`core/src/mcp.ts`).
 
 ## Layout
 
@@ -26,7 +36,7 @@ Requires macOS 26, Xcode 26 and Node.js 24+.
 scripts/build-app.sh --open
 ```
 
-Add your Anthropic API key in **Pith → Settings** (stored in the Keychain). Without a key the app runs offline, which is handy for trying the UI.
+Pick a provider in **Pith → Settings**: an Anthropic or Gemini key (stored in the Keychain), or ChatGPT through Codex. Without one the app runs offline, which is handy for trying the UI.
 
 Data lives in `~/Library/Application Support/Pith`.
 
@@ -38,4 +48,4 @@ cd core && npm run sim               # 30k-message memory simulation, no API cal
 cd app && swift run                  # app against core/ in this checkout
 ```
 
-Dev-only environment variables: `PITH_DATA` (data folder), `PITH_VIEW_HIGH` / `PITH_VIEW_LOW` (view sizes), `PITH_SNAPSHOT` (write window captures to a PNG), `PITH_DEV_TOKEN` (fixed core token).
+Dev-only environment variables: `PITH_DATA` (data folder), `PITH_VIEW_HIGH` / `PITH_VIEW_LOW` (view sizes), `PITH_SNAPSHOT` (write window captures to a PNG), `PITH_OPEN_SETTINGS` (open Settings at launch), `PITH_DEV_TOKEN` (fixed core token).

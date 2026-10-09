@@ -27,6 +27,10 @@ struct CoreStats: Codable {
     var compactModel = ""
     var workspace = ""
     var offline = false
+    var provider: String? = nil
+    var compactProvider: String? = nil
+    var helper: String? = nil
+    var costComplete: Bool? = nil
 }
 
 struct ViewLine: Codable, Identifiable, Hashable {

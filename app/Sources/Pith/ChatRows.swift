@@ -166,7 +166,13 @@ struct ActivityRow: View {
         let zooms = names.filter { $0 == "zoom" || $0 == "work_log" }.count
         let dates = names.filter { $0 == "date" }.count
         let code = names.filter { $0 == "code" }.count
+        let shell = names.filter { $0 == "shell" }.count
+        let edits = names.filter { $0 == "edit" }.count
+        let web = names.filter { $0 == "web_search" }.count
         var parts: [String] = []
+        if shell > 0 { parts.append(shell == 1 ? "rodou um comando" : "rodou \(shell) comandos") }
+        if edits > 0 { parts.append(edits == 1 ? "editou arquivos" : "editou arquivos \(edits)×") }
+        if web > 0 { parts.append(web == 1 ? "pesquisou na web" : "pesquisou na web \(web)×") }
         if zooms > 0 { parts.append(zooms == 1 ? "Consultou a memória" : "Consultou a memória \(zooms)×") }
         if dates > 0 { parts.append("conferiu \(dates == 1 ? "uma data" : "\(dates) datas")") }
         if code > 0 { parts.append(code == 1 ? "acionou o Claude Code" : "acionou o Claude Code \(code)×") }
@@ -177,6 +183,9 @@ struct ActivityRow: View {
 
     private func icon(for text: String) -> String {
         if text.hasPrefix("code") { return "hammer" }
+        if text.hasPrefix("shell") { return "terminal" }
+        if text.hasPrefix("edit") { return "pencil" }
+        if text.hasPrefix("web_search") { return "globe" }
         if text.hasPrefix("date") { return "calendar" }
         return "square.stack.3d.down.right"
     }

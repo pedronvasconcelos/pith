@@ -66,7 +66,9 @@ struct StrataInspector: View {
                 }
                 GridRow {
                     stat("Condensando", store.stats.pending > 0 ? "\(store.stats.pending)" : "em dia")
-                    stat("Gasto", store.stats.costUSD.formatted(.currency(code: "USD").precision(.fractionLength(2))))
+                    stat("Gasto", store.stats.costComplete == false && store.stats.costUSD == 0
+                         ? "no plano"
+                         : store.stats.costUSD.formatted(.currency(code: "USD").precision(.fractionLength(2))))
                 }
             }
         }

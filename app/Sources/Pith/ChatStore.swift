@@ -3,14 +3,26 @@ import Observation
 import SwiftUI
 
 struct AppSettings: Equatable {
+    var provider: String        // claude | gemini | codex
+    var compactProvider: String // auto | claude | gemini | codex
+    var helper: String          // auto | claude-code | codex
     var model: String
+    var geminiModel: String
+    var codexModel: String
+    var codexWrite: Bool
     var effort: String
     var workspace: String
 
     static var current: AppSettings {
         let d = UserDefaults.standard
         return AppSettings(
+            provider: d.string(forKey: "provider") ?? "claude",
+            compactProvider: d.string(forKey: "compactProvider") ?? "auto",
+            helper: d.string(forKey: "helper") ?? "auto",
             model: d.string(forKey: "model") ?? "claude-opus-5-5",
+            geminiModel: d.string(forKey: "geminiModel") ?? "gemini-3.8-flash",
+            codexModel: d.string(forKey: "codexModel") ?? "",
+            codexWrite: d.bool(forKey: "codexWrite"),
             effort: d.string(forKey: "effort") ?? "high",
             workspace: d.string(forKey: "workspace") ?? NSHomeDirectory()
         )

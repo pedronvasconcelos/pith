@@ -22,6 +22,7 @@ cp "$ROOT/assets/Pith.icns" "$OUT/Contents/Resources/Pith.icns"
 rsync -a --delete \
   --exclude test --exclude sim --exclude tsconfig.json \
   --exclude node_modules/typescript --exclude 'node_modules/@typescript' --exclude 'node_modules/@types' \
+  --exclude 'node_modules/@openai/codex-darwin-*' --exclude 'node_modules/@openai/codex-linux-*' \
   "$ROOT/core/" "$OUT/Contents/Resources/core/"
 
 VERSION=$(node -p "require('$ROOT/core/package.json').version")
@@ -31,6 +32,8 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key><string>Pith</string>
+  <key>CFBundleDevelopmentRegion</key><string>pt-BR</string>
+  <key>CFBundleLocalizations</key><array><string>pt-BR</string></array>
   <key>CFBundleDisplayName</key><string>Pith</string>
   <key>CFBundleIdentifier</key><string>app.pith.Pith</string>
   <key>CFBundleExecutable</key><string>Pith</string>

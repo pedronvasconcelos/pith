@@ -1,6 +1,18 @@
 import { WebSocketServer, type WebSocket } from "ws";
 import type { Agents, PermissionRequest } from "./agents.ts";
-import { COMPACT_MODEL, FAKE, TURN_EFFORT, TURN_MODEL, WORKSPACE } from "./config.ts";
+import {
+  CODEX_MODEL,
+  COMPACT_MODEL,
+  COMPACT_PROVIDER,
+  FAKE,
+  GEMINI_COMPACT_MODEL,
+  GEMINI_MODEL,
+  HELPER,
+  PROVIDER,
+  TURN_EFFORT,
+  TURN_MODEL,
+  WORKSPACE,
+} from "./config.ts";
 import type { Message } from "./log.ts";
 import type { Memory } from "./memory.ts";
 import { Stats } from "./stats.ts";
@@ -62,9 +74,13 @@ export function serve(opts: {
       compactionCalls: s.compactions.calls,
       cacheHit: Stats.hitRate(s.turns),
       lastTurn: s.last,
-      model: TURN_MODEL,
+      costComplete: s.costComplete,
+      provider: PROVIDER,
+      model: PROVIDER === "claude" ? TURN_MODEL : PROVIDER === "gemini" ? GEMINI_MODEL : (CODEX_MODEL ?? "codex"),
       effort: TURN_EFFORT,
-      compactModel: COMPACT_MODEL,
+      compactProvider: COMPACT_PROVIDER,
+      compactModel: COMPACT_PROVIDER === "claude" ? COMPACT_MODEL : COMPACT_PROVIDER === "gemini" ? GEMINI_COMPACT_MODEL : (CODEX_MODEL ?? "codex"),
+      helper: HELPER,
       workspace: WORKSPACE,
       offline: FAKE,
     };

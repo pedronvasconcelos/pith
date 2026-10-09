@@ -18,11 +18,12 @@ export class LogStore {
   private dir: string;
   private lockFile: string;
 
-  constructor(dataDir: string) {
+  /** `readOnly` skips the lock: for readers like the MCP server, never for writers. */
+  constructor(dataDir: string, readOnly = false) {
     this.dir = path.join(dataDir, "main");
     fs.mkdirSync(this.dir, { recursive: true });
     this.lockFile = path.join(dataDir, "lock");
-    this.lock();
+    if (!readOnly) this.lock();
     for (const f of fs.readdirSync(this.dir).filter((f) => f.endsWith(".jsonl")).sort()) {
       for (const m of readJsonl<Message>(path.join(this.dir, f))) {
         if (m.i === this.messages.length) this.messages.push(m);
