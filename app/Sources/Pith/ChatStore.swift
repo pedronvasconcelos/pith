@@ -63,6 +63,7 @@ final class ChatStore {
     var connection: Connection = .starting
     var lastError: String?
     var zoom: ZoomResult?
+    var branches: Branches?
     var hasOlder: Bool { (messages.first?.i ?? 0) > 0 }
 
     private let core = CoreProcess()
@@ -148,6 +149,7 @@ final class ChatStore {
 
     func open(_ line: ViewLine) { send(["type": "zoom", "id": line.id, "n": line.n]) }
     func open(id: Int, n: Int) { send(["type": "zoom", "id": id, "n": n]) }
+    func loadBranches() { send(["type": "branches"]) }
 
     func answer(_ req: PermissionRequest, allow: Bool, always: Bool = false) {
         permissions.removeAll { $0.id == req.id }
@@ -203,6 +205,8 @@ final class ChatStore {
             permissions.removeAll { $0.id == id }
         case .zoom(let z):
             zoom = z
+        case .branches(let b):
+            branches = b
         case .error(let msg):
             lastError = msg
         }

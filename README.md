@@ -32,6 +32,14 @@ The icon is that cross-section: rings in sapwood-to-heartwood tones, tight at th
 
 ChatGPT runs through OpenAI's official Codex SDK and CLI on your login, so usage counts against your plan. Pith never reads or reuses Codex's tokens; Codex reaches Pith's memory tools through a local, read-only MCP server (`core/src/mcp.ts`).
 
+## Use your memory from other agents
+
+Pith's read-only MCP server lets Claude Code, Cursor and Codex consult your memory while you work: `search` by keywords, `overview` for the whole chat condensed, `zoom` into any line, `date` and `work_log`. Turn each one on in **Settings → Integrations**; Pith registers itself with each tool's own mechanism (`claude mcp add`, `~/.cursor/mcp.json`, `codex mcp add`). Nothing is ever written to Pith from there.
+
+## The tree window
+
+**Window → Árvore** (⇧⌘B) draws the memory as a small grove. Each leaf is a line Pith reads: fresh green leaves are recent messages kept whole, golden ones are old conversation condensed. Pairs of leaves join into branches and branches into a trunk, one tree per complete part of the chat: the big tree is the past, the saplings are today. Hover a leaf to read it; click to open it down to the original messages.
+
 ## Layout
 
 - `core/` — TypeScript core (Node 24): log, tree, view, compactor, turns, Claude Code helpers, local WebSocket API
@@ -58,4 +66,4 @@ cd core && npm run sim               # 30k-message memory simulation, no API cal
 cd app && swift run                  # app against core/ in this checkout
 ```
 
-Dev-only environment variables: `PITH_DATA` (data folder), `PITH_VIEW_HIGH` / `PITH_VIEW_LOW` (view sizes), `PITH_SNAPSHOT` (write window captures to a PNG), `PITH_OPEN_SETTINGS` (open Settings at launch), `PITH_DEV_TOKEN` (fixed core token).
+Dev-only environment variables: `PITH_DATA` (data folder), `PITH_VIEW_HIGH` / `PITH_VIEW_LOW` (view sizes), `PITH_SNAPSHOT` (write window captures to a PNG), `PITH_OPEN_SETTINGS` / `PITH_OPEN_BRANCHES` (open a window at launch), `PITH_SNAPSHOT_WINDOW` (which window to capture), `PITH_DEV_TOKEN` (fixed core token).

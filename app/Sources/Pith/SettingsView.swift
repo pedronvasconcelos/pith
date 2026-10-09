@@ -109,6 +109,16 @@ struct SettingsView: View {
                      : "O Claude Code pede sua permissão antes de editar arquivos ou rodar comandos. O Codex trabalha sozinho, dentro do sandbox dele.")
             }
 
+            Section {
+                ForEach(Integration.allCases) { tool in
+                    IntegrationRow(tool: tool)
+                }
+            } header: {
+                Text("Integrações")
+            } footer: {
+                Text("Deixa outros agentes consultarem sua memória enquanto você trabalha: buscar, ler o resumo e abrir mensagens. Só leitura, nada é escrito no Pith.")
+            }
+
             Section("Dados") {
                 LabeledContent("Memória") {
                     Button("Mostrar no Finder") {
@@ -239,6 +249,67 @@ private struct CodexRow: View {
                 }
                 .disabled(codex.busy)
             }
+        }
+    }
+}
+
+private struct IntegrationRow: View {
+    let tool: Integration
+    @State private var state: Integration.State?
+    @State private var busy = false
+    @State private var error: String?
+
+    var body: some View {
+        LabeledContent {
+            HStack(spacing: 10) {
+                if busy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    switch state {
+                    case nil:
+                        ProgressView().controlSize(.small)
+                    case .missing:
+                        Text("Não instalado").foregroundStyle(.tertiary)
+                    case .off:
+                        Button("Conectar") { change(connect: true) }
+                    case .stale:
+                        Text("Desatualizado").foregroundStyle(.orange)
+                        Button("Reconectar") { change(connect: true) }
+                    case .on:
+                        Label("Conectado", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                        Button("Desconectar") { change(connect: false) }
+                    }
+                }
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tool.name)
+                if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            }
+        }
+        .task { await refresh() }
+    }
+
+    private func refresh() async {
+        state = await Task.detached { Integration.Server.current.map { tool.state($0) } ?? .missing }.value
+    }
+
+    private func change(connect: Bool) {
+        busy = true
+        error = nil
+        Task {
+            let failure: String? = await Task.detached {
+                do {
+                    guard let server = Integration.Server.current else { return "Node.js não encontrado." }
+                    if connect { try tool.connect(server) } else { try tool.disconnect() }
+                    return nil
+                } catch {
+                    return error.localizedDescription
+                }
+            }.value
+            error = failure
+            await refresh()
+            busy = false
         }
     }
 }

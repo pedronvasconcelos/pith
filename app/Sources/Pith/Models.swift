@@ -70,6 +70,24 @@ struct ZoomResult: Codable {
     let children: [ViewLine]
 }
 
+/// A node of the memory tree, for the Branches window.
+struct BranchNode: Codable, Identifiable, Hashable {
+    let name: String
+    let l: Int
+    let i: Int
+    let id: Int
+    let n: Int
+    let built: Bool
+    let text: String?
+    var key: String { "\(l):\(i)" }
+}
+
+struct Branches: Codable {
+    let total: Int
+    let cut: [BranchNode]
+    let ancestors: [BranchNode]
+}
+
 /// Everything the core can send. Decoded by its `type`.
 enum CoreEvent {
     case snapshot(messages: [LogMessage], busy: Bool, permissions: [PermissionRequest])
@@ -85,6 +103,7 @@ enum CoreEvent {
     case permission(PermissionRequest)
     case permissionResolved(id: String)
     case zoom(ZoomResult)
+    case branches(Branches)
     case error(String)
 
     static func decode(_ data: Data) -> CoreEvent? {
@@ -106,6 +125,7 @@ enum CoreEvent {
         case "permission": return (try? d.decode(Perm.self, from: data)).map { .permission($0.request) }
         case "permissionResolved": return (try? d.decode(Ident.self, from: data)).map { .permissionResolved(id: $0.id) }
         case "zoom": return (try? d.decode(ZoomResult.self, from: data)).map { .zoom($0) }
+        case "branches": return (try? d.decode(Branches.self, from: data)).map { .branches($0) }
         case "error": return (try? d.decode(Err.self, from: data)).map { .error($0.message) }
         default: return nil
         }

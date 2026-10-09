@@ -26,6 +26,7 @@ type In =
   | { type: "cancel" }
   | { type: "history"; before: number; limit?: number }
   | { type: "zoom"; id: number; n: number }
+  | { type: "branches" }
   | { type: "permission"; id: string; allow: boolean; always?: boolean };
 
 /** Local WebSocket API for the app. Only 127.0.0.1, only with the token. */
@@ -96,6 +97,32 @@ export function serve(opts: {
       text: memory.tree.get(l, i) ? flatten(memory.tree.get(l, i)!.text) : null,
     })),
   });
+
+  /**
+   * The view as a cut across the tree, plus every ancestor of the cut up to
+   * the roots: the complete subtrees of the chat (one per 1-bit of its size).
+   */
+  const branches = () => {
+    const total = memory.log.count;
+    const node = (l: number, i: number) => {
+      const n = memory.tree.get(l, i);
+      return { name: nodeName(l, i), l, i, id: first(l, i), n: span(l), built: !!n, text: n ? flatten(n.text).slice(0, 600) : null };
+    };
+    const above = new Map<string, [number, number]>();
+    for (const [l, i] of memory.view.lines) {
+      for (let pl = l + 1, pi = i >> 1; first(pl, pi) + span(pl) <= total; pl++, pi >>= 1) {
+        const k = `${pl}:${pi}`;
+        if (above.has(k)) break;
+        above.set(k, [pl, pi]);
+      }
+    }
+    return {
+      type: "branches",
+      total,
+      cut: memory.view.lines.map(([l, i]) => node(l, i)),
+      ancestors: [...above.values()].map(([l, i]) => node(l, i)),
+    };
+  };
 
   let timer: NodeJS.Timeout | null = null;
   memory.on("changed", () => {
@@ -184,6 +211,9 @@ export function serve(opts: {
         }
         case "permission":
           agents.answer(msg.id, !!msg.allow, !!msg.always);
+          break;
+        case "branches":
+          send(ws, branches());
           break;
       }
     });
