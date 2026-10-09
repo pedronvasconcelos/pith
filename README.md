@@ -4,6 +4,16 @@ A native macOS chat app with lifelong memory: one endless conversation, logged v
 
 Based on the memory architecture described in [this gist](https://gist.github.com/VictorTaelin/91837951a5ce5b38f341ec1ba1df6449).
 
+<p align="center"><img src="assets/Pith.png" width="160" alt="Pith icon: tree rings around an amber center"></p>
+
+## The name
+
+In botany, the *pith* is the soft core at the very center of a tree's stem: the oldest part of the tree, with every later ring grown around it. In everyday English it also means the essence of something, as in "the pith of the matter".
+
+Both meanings describe how Pith remembers. A tree's cross-section is a record of time: rings near the center are old and packed tight, rings near the bark are recent and wide. Pith's memory has the same shape. Old messages are condensed into dense lines that each cover many messages, while recent ones stay close to word-for-word. Each condensed line keeps the pith of what was said, and the whole conversation stays within reach, from the first message to the last.
+
+The icon is that cross-section: rings in sapwood-to-heartwood tones, tight at the center and wide at the edge, around an amber pith. The **Strata** panel in the app shows the same idea as a geological column, with the newest layers on top.
+
 ## How it works
 
 - **Log** — every message is appended verbatim to `main/YYYY-MM-DD.jsonl` and never edited.
