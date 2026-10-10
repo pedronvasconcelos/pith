@@ -12,7 +12,7 @@ struct PithApp: App {
                 .environment(store)
                 .task {
                     delegate.store = store
-                    await store.start()
+                    await store.launch()
                 }
         }
         .defaultSize(width: 1120, height: 760)
@@ -30,6 +30,53 @@ struct PithApp: App {
         Settings {
             SettingsView().environment(store)
         }
+
+        // Keeps Pith reachable with every window closed.
+        MenuBarExtra {
+            MenuBarMenu()
+        } label: {
+            MenuBarIcon(store: store) { delegate.store = store }
+        }
+    }
+}
+
+/// The menu bar icon. It lives as long as the app, so it also wires the quick chat.
+private struct MenuBarIcon: View {
+    let store: ChatStore
+    let attach: () -> Void
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Image(systemName: "smallcircle.filled.circle")
+            .task {
+                attach()
+                QuickChat.shared.store = store
+                QuickChat.shared.openMain = { openWindow(id: "main") }
+                QuickChat.shared.reloadHotKey()
+                // Development: PITH_OPEN_QUICK opens the quick chat at launch.
+                if ProcessInfo.processInfo.environment["PITH_OPEN_QUICK"] != nil {
+                    Task { try? await Task.sleep(for: .seconds(3)); QuickChat.shared.show() }
+                }
+                await store.launch()
+            }
+    }
+}
+
+private struct MenuBarMenu: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Chat rápido") { QuickChat.shared.show() }
+        Button("Abrir o Pith") { QuickChat.shared.openConversation() }
+        Button("Árvore") {
+            NSApp.activate()
+            openWindow(id: "branches")
+        }
+        Divider()
+        SettingsLink { Text("Ajustes…") }
+        Divider()
+        Button("Sair do Pith") { NSApp.terminate(nil) }
+            .keyboardShortcut("q")
     }
 }
 
@@ -72,6 +119,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         else { return }
         let rep = NSBitmapImageRep(cgImage: image)
         try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+    }
+
+    // The core keeps running in the menu bar with the window closed.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows { MainActor.assumeIsolated { QuickChat.shared.openConversation() } }
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {

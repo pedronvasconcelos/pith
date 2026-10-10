@@ -119,6 +119,14 @@ struct SettingsView: View {
                 Text("Deixa outros agentes consultarem sua memória enquanto você trabalha: buscar, ler o resumo e abrir mensagens. Só leitura, nada é escrito no Pith.")
             }
 
+            Section {
+                LabeledContent("Atalho global") { HotKeyRecorder() }
+            } header: {
+                Text("Chat rápido")
+            } footer: {
+                Text("Abre uma janelinha por cima de tudo que continua a mesma conversa. Esc fecha; ⌘↩ abre a conversa aqui.")
+            }
+
             Section("Dados") {
                 LabeledContent("Memória") {
                     Button("Mostrar no Finder") {
