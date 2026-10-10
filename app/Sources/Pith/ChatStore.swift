@@ -69,6 +69,14 @@ final class ChatStore {
     private let core = CoreProcess()
     private var socket: URLSessionWebSocketTask?
     private var settings = AppSettings.current
+    private var launched = false
+
+    /// Starts the core once per app run, whichever scene asks first.
+    func launch() async {
+        guard !launched else { return }
+        launched = true
+        await start()
+    }
 
     func start() async {
         connection = .starting

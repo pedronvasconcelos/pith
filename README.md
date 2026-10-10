@@ -40,6 +40,10 @@ Pith's read-only MCP server lets Claude Code, Cursor and Codex consult your memo
 
 **Window → Árvore** (⇧⌘B) draws the memory as one tree in fine line art and the app's wood palette. A single stem runs through time, from the first message on the left to now on the right; small branches sprout from it in order, alternating up and down, with large outlined leaves at their tips. Each leaf is a line Pith reads: pale sapwood leaves are recent messages kept whole, darker heartwood ones are old conversation condensed. Scroll sideways to go back in time, hover a leaf to read it, click to open it down to the original messages.
 
+## Quick chat
+
+Press **⌥Space** anywhere to open a small floating panel over whatever you're doing. It continues the same conversation: the last few exchanges, the reply streaming in, and a field. Esc closes it, ⌘↩ opens the conversation in the main window. Change or turn off the shortcut in **Settings → Chat rápido**. Pith keeps running in the menu bar when its window is closed, so the shortcut always works.
+
 ## Layout
 
 - `core/` — TypeScript core (Node 24): log, tree, view, compactor, turns, Claude Code helpers, local WebSocket API
