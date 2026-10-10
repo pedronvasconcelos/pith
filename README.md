@@ -38,7 +38,7 @@ Pith's read-only MCP server lets Claude Code, Cursor and Codex consult your memo
 
 ## The tree window
 
-**Window → Árvore** (⇧⌘B) draws the memory as a small grove, in line art and the app's wood palette, like a botanical ink drawing. Each leaf is a line Pith reads: pale sapwood leaves are recent messages kept whole, dark heartwood ones are old conversation condensed. Pairs of leaves join into branches and branches into a trunk, one tree per complete part of the chat: the big tree is the past, the saplings are today. Hover a leaf to read it; click to open it down to the original messages.
+**Window → Árvore** (⇧⌘B) draws the memory as one tree in fine line art and the app's wood palette. A single stem runs through time, from the first message on the left to now on the right; small branches sprout from it in order, alternating up and down, with large outlined leaves at their tips. Each leaf is a line Pith reads: pale sapwood leaves are recent messages kept whole, darker heartwood ones are old conversation condensed. Scroll sideways to go back in time, hover a leaf to read it, click to open it down to the original messages.
 
 ## Layout
 

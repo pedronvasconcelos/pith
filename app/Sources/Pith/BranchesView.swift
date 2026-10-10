@@ -17,7 +17,7 @@ struct BranchesView: View {
         Group {
             if let b = store.branches, b.total > 0 {
                 let grove = Grove(b, scale: scale)
-                ScrollView([.horizontal, .vertical]) {
+                ScrollView([.horizontal, .vertical], showsIndicators: false) {
                     ZStack(alignment: .topLeading) {
                         Canvas { ctx, size in grove.draw(ctx, size: size, hovered: hovered?.key, dark: scheme == .dark) }
                         ForEach(grove.leaves) { leaf in
@@ -36,7 +36,7 @@ struct BranchesView: View {
                     }
                     .frame(width: grove.size.width, height: grove.size.height)
                 }
-                .defaultScrollAnchor(.bottomTrailing)
+                .defaultScrollAnchor(.trailing)
                 .background(sky)
                 .overlay(alignment: .topLeading) { header(b, grove) }
                 .overlay(alignment: .bottom) { detail }
@@ -86,7 +86,7 @@ struct BranchesView: View {
                 legend(level: 0, "Folhas claras: mensagens recentes, inteiras")
                 legend(level: 7, "Folhas escuras: conversas antigas, resumidas")
             }
-            Text("Passe o mouse numa folha para ler; clique para abrir.")
+            Text("Role para o lado para voltar no tempo. Passe o mouse numa folha para ler; clique para abrir.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -150,6 +150,14 @@ enum Leaf {
         return p
     }
 
+    /// Petiole and midrib only: the clean version.
+    static func midrib(length L: CGFloat) -> Path {
+        var p = Path()
+        p.move(to: .zero)
+        p.addQuadCurve(to: CGPoint(x: L * 0.88, y: -L * 0.02), control: CGPoint(x: L * 0.5, y: L * 0.035))
+        return p
+    }
+
     /// Petiole, midrib and three pairs of side veins.
     static func veins(length L: CGFloat) -> Path {
         var p = Path()
@@ -191,170 +199,175 @@ private struct Seeded {
     }
 }
 
+/// One tree, read left to right like time. A single fine stem runs from the
+/// first message to now. At every fork the older half leaves the stem as a
+/// side branch, alternating up and down, and the newer half carries the stem
+/// on, so the present is always at the growing tip. Leaves are the lines Pith
+/// reads; bigger, darker leaves hold more of the condensed past.
 struct Grove {
-    struct Limb { let from: CGPoint; let to: CGPoint; let control: CGPoint; let startWidth: CGFloat; let endWidth: CGFloat }
+    struct Limb { let from: CGPoint; let control: CGPoint; let to: CGPoint; let width: CGFloat }
     struct LeafSpot: Identifiable {
         let node: BranchNode
-        let center: CGPoint
-        let radius: CGFloat
-        let leaves: [(at: CGPoint, angle: CGFloat, length: CGFloat)]
+        let base: CGPoint
+        let angle: CGFloat
+        let length: CGFloat
+        var center: CGPoint { CGPoint(x: base.x + cos(angle) * length * 0.55, y: base.y + sin(angle) * length * 0.55) }
+        var radius: CGFloat { length * 0.45 }
         var id: String { node.key }
     }
 
     var limbs: [Limb] = []
     var leaves: [LeafSpot] = []
-    var trunks: [CGPoint] = []
-    var ground: CGFloat = 0
+    var start: CGPoint = .zero
+    var end: CGPoint = .zero
     var size: CGSize = .zero
 
+    private var byKey: [String: BranchNode] = [:]
+    private var cut: Set<String> = []
+    private var counts: [String: Int] = [:]
+    private let unit: CGFloat
+
     init(_ b: Branches, scale: CGFloat) {
-        var byKey: [String: BranchNode] = [:]
+        unit = 30 * scale
         for n in b.cut + b.ancestors { byKey[n.key] = n }
-        let cutKeys = Set(b.cut.map(\.key))
-        // Trunks are the nodes with no parent, oldest first.
+        cut = Set(b.cut.map(\.key))
         let roots = (b.cut + b.ancestors)
             .filter { byKey["\($0.l + 1):\($0.i >> 1)"] == nil }
             .sorted { $0.id < $1.id }
+        guard !roots.isEmpty else { return }
 
-        let unit = 34 * scale
-        let tallest = CGFloat(roots.map(\.l).max() ?? 0)
-        let height = unit * (2.6 + tallest * 0.95) + 220
-        ground = height - 60
-        var x: CGFloat = 80
-
-        for root in roots {
-            // Room for the crown, which grows with the size of the tree.
-            let crown = unit * (1.4 + CGFloat(root.l) * 1.15)
-            x += crown
-            let base = CGPoint(x: x, y: ground)
-            trunks.append(base)
-            let trunk = unit * (1.3 + CGFloat(root.l) * 0.35)
-            grow(root, from: base, angle: -.pi / 2, length: trunk, top: root.l, byKey: byKey, cut: cutKeys, depth: 0)
-            x += crown
+        // The whole chat is one stem running through time. Small branches of
+        // a few leaves each sprout from it in order, alternating up and down.
+        var at = CGPoint.zero
+        var dir: CGFloat = 0
+        var side: CGFloat = -1
+        for group in roots.flatMap({ groups($0) }) {
+            (at, dir) = stem(from: at, dir: dir * 0.6, gap: gap(for: group), seed: group, depth: 0)
+            branch(group, from: at, dir: dir, side: side, depth: 0)
+            side = -side
         }
-        size = CGSize(width: max(x + 80, 640), height: height)
+        // A last stretch of stem: the growing tip.
+        (at, _) = stem(from: at, dir: dir * 0.6, gap: unit * 1.2, seed: roots[roots.count - 1], depth: 0)
+        end = at
+        layoutBounds()
     }
 
-    private mutating func grow(_ node: BranchNode, from: CGPoint, angle: CGFloat, length: CGFloat,
-                               top: Int, byKey: [String: BranchNode], cut: Set<String>, depth: Int,
-                               startWidth: CGFloat? = nil) {
-        var rng = Seeded(node.l, node.i)
-        let bend = (rng.next() - 0.5) * 0.25
-        let to = CGPoint(x: from.x + cos(angle) * length, y: from.y + sin(angle) * length)
-        let mid = CGPoint(x: (from.x + to.x) / 2 + cos(angle + .pi / 2) * length * bend,
-                          y: (from.y + to.y) / 2 + sin(angle + .pi / 2) * length * bend)
-        // Thickness follows how much of the conversation flows through here.
-        // Wood tapers from the trunk to the twigs.
-        let width = 1.6 + CGFloat(node.l) * 1.9
-        limbs.append(Limb(from: from, to: to, control: mid, startWidth: startWidth ?? width * 1.25, endWidth: width * 0.82))
+    private func children(_ n: BranchNode) -> [BranchNode] {
+        ["\(n.l - 1):\(2 * n.i)", "\(n.l - 1):\(2 * n.i + 1)"].compactMap { byKey[$0] }
+    }
 
-        if cut.contains(node.key) {
-            addLeaves(node, at: to, angle: angle, rng: &rng)
+    private mutating func count(_ n: BranchNode) -> Int {
+        if let c = counts[n.key] { return c }
+        let c = cut.contains(n.key) ? 1 : max(children(n).reduce(0) { $0 + count($1) }, 1)
+        counts[n.key] = c
+        return c
+    }
+
+    /// Splits the tree into branches of at most a handful of leaves, oldest first.
+    private mutating func groups(_ n: BranchNode) -> [BranchNode] {
+        if count(n) <= 6 || cut.contains(n.key) { return [n] }
+        return children(n).flatMap { groups($0) }
+    }
+
+    /// Room along the stem for a side branch, so neighbours don't tangle.
+    /// Branches alternate sides, so each only needs about half its width.
+    private mutating func gap(for n: BranchNode) -> CGFloat {
+        unit * (0.75 + 0.5 * CGFloat(count(n)))
+    }
+
+    /// Extends a stem by `gap`, with a gentle sway; returns where it ends.
+    private mutating func stem(from: CGPoint, dir: CGFloat, gap: CGFloat, seed: BranchNode, depth: Int) -> (CGPoint, CGFloat) {
+        var rng = Seeded(seed.l, seed.i)
+        let sway = (rng.next() - 0.5) * 0.16
+        let newDir = dir + sway
+        let to = CGPoint(x: from.x + cos(newDir) * gap, y: from.y + sin(newDir) * gap)
+        let control = CGPoint(x: from.x + cos(dir) * gap * 0.55, y: from.y + sin(dir) * gap * 0.55)
+        limbs.append(Limb(from: from, control: control, to: to, width: depth == 0 ? 1.5 : 1.1))
+        return (to, newDir)
+    }
+
+    private mutating func branch(_ n: BranchNode, from: CGPoint, dir: CGFloat, side: CGFloat, depth: Int) {
+        var rng = Seeded(n.l &+ 7, n.i)
+        let angle = (depth == 0 ? 0.95 : 0.72) + (rng.next() - 0.5) * 0.2
+        grow(n, from: from, dir: dir + side * angle, depth: depth + 1, side: -side)
+    }
+
+    /// A node either ends in a leaf or forks: the older child branches off,
+    /// the newer one carries this stem on.
+    private mutating func grow(_ n: BranchNode, from: CGPoint, dir: CGFloat, depth: Int, side: CGFloat) {
+        if cut.contains(n.key) {
+            var rng = Seeded(n.l, n.i &+ 3)
+            let twig = unit * 0.45
+            let d = dir + (rng.next() - 0.5) * 0.5
+            let tip = CGPoint(x: from.x + cos(d) * twig, y: from.y + sin(d) * twig)
+            limbs.append(Limb(from: from, control: CGPoint(x: (from.x + tip.x) / 2, y: (from.y + tip.y) / 2), to: tip, width: 1))
+            let length = unit * (1.05 + CGFloat(min(n.l, 7)) * 0.16) + rng.next() * unit * 0.25
+            leaves.append(LeafSpot(node: n, base: tip, angle: d + (rng.next() - 0.5) * 0.4, length: length))
             return
         }
-        let kids = ["\(node.l - 1):\(2 * node.i)", "\(node.l - 1):\(2 * node.i + 1)"].compactMap { byKey[$0] }
-        if kids.isEmpty {
-            addLeaves(node, at: to, angle: angle, rng: &rng)
-            return
-        }
-        // Branches fan out, then curve back up towards the light.
-        let spread = 0.32 + 0.22 * rng.next() + CGFloat(depth) * 0.015
-        for (k, child) in kids.enumerated() {
-            let side: CGFloat = kids.count == 1 ? 0 : (k == 0 ? -1 : 1)
-            var a = angle + side * spread + (rng.next() - 0.5) * 0.12
-            a = a * 0.86 + (-.pi / 2) * 0.14
-            let next = length * (0.74 + 0.08 * rng.next())
-            grow(child, from: to, angle: a, length: next, top: top, byKey: byKey, cut: cut, depth: depth + 1,
-                 startWidth: width * 0.82)
+        let kids = children(n)
+        guard let newer = kids.last else { return }
+        if kids.count == 2 {
+            let older = kids[0]
+            let (at, d) = stem(from: from, dir: dir, gap: gap(for: older), seed: n, depth: depth)
+            branch(older, from: at, dir: d, side: side, depth: depth)
+            // Side branches drift back towards the stem's direction, like the reference vine.
+            grow(newer, from: at, dir: depth == 0 ? d : d * 0.92, depth: depth, side: -side)
+        } else {
+            grow(newer, from: from, dir: dir, depth: depth, side: side)
         }
     }
 
-    private mutating func addLeaves(_ node: BranchNode, at tip: CGPoint, angle: CGFloat, rng: inout Seeded) {
-        // Condensed leaves are bigger clusters: they hold more of the past.
-        let count = 3 + min(node.l / 2, 3)
-        let radius = 20 + CGFloat(node.l) * 3
-        var spots: [(CGPoint, CGFloat, CGFloat)] = []
-        for k in 0..<count {
-            let a = angle + (CGFloat(k) / CGFloat(max(count - 1, 1)) - 0.5) * 2.2 + (rng.next() - 0.5) * 0.5
-            let at = CGPoint(x: tip.x + cos(a) * 2, y: tip.y + sin(a) * 2)
-            spots.append((at, a, 22 + CGFloat(node.l) * 2.6 + rng.next() * 8))
+    /// Moves everything into positive space with margins.
+    private mutating func layoutBounds() {
+        var minX = CGFloat.infinity, minY = CGFloat.infinity, maxX = -CGFloat.infinity, maxY = -CGFloat.infinity
+        func add(_ p: CGPoint, _ r: CGFloat = 0) {
+            minX = min(minX, p.x - r); maxX = max(maxX, p.x + r)
+            minY = min(minY, p.y - r); maxY = max(maxY, p.y + r)
         }
-        leaves.append(LeafSpot(node: node, center: tip, radius: radius, leaves: spots))
+        for l in limbs { add(l.from); add(l.to) }
+        for leaf in leaves { add(leaf.center, leaf.length * 0.6) }
+        let margin: CGFloat = 90
+        let dx = margin - minX, dy = margin + 70 - minY
+        func move(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x + dx, y: p.y + dy) }
+        limbs = limbs.map { Limb(from: move($0.from), control: move($0.control), to: move($0.to), width: $0.width) }
+        leaves = leaves.map { LeafSpot(node: $0.node, base: move($0.base), angle: $0.angle, length: $0.length) }
+        start = move(.zero)
+        end = move(end)
+        size = CGSize(width: max(maxX - minX + margin * 2, 640), height: max(maxY - minY + margin * 2 + 70, 420))
     }
 
     func draw(_ ctx: GraphicsContext, size: CGSize, hovered: String?, dark: Bool) {
-        // One hairline of ground.
-        var groundLine = Path()
-        groundLine.move(to: CGPoint(x: 32, y: ground))
-        groundLine.addLine(to: CGPoint(x: size.width - 32, y: ground))
-        ctx.stroke(groundLine, with: .color(.secondary.opacity(0.35)), lineWidth: 1)
-
-        // Wood in contour: both edges of each limb, filled with the paper
-        // so crossings read like an ink drawing; twigs are a single line.
-        let wood = Theme.stratum(dark ? 4 : 7)
+        let wood = Theme.stratum(dark ? 3 : 7)
         let paper = Color(nsColor: .windowBackgroundColor)
         for limb in limbs {
-            if limb.startWidth < 4.5 {
-                var p = Path()
-                p.move(to: limb.from)
-                p.addQuadCurve(to: limb.to, control: limb.control)
-                ctx.stroke(p, with: .color(wood), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
-                continue
-            }
-            let (outline, edges) = Self.contour(limb)
-            ctx.fill(outline, with: .color(paper))
-            ctx.stroke(edges, with: .color(wood), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
+            var p = Path()
+            p.move(to: limb.from)
+            p.addQuadCurve(to: limb.to, control: limb.control)
+            ctx.stroke(p, with: .color(wood), style: StrokeStyle(lineWidth: limb.width, lineCap: .round))
         }
-        // The pith: an amber dot where each tree meets the ground.
-        for base in trunks {
-            let r: CGFloat = 3
-            ctx.fill(Path(ellipseIn: CGRect(x: base.x - r, y: base.y - r, width: r * 2, height: r * 2)), with: .color(Theme.heartwood))
+        // The pith: where the first message grew from.
+        let r: CGFloat = 3.5
+        ctx.fill(Path(ellipseIn: CGRect(x: start.x - r, y: start.y - r, width: r * 2, height: r * 2)), with: .color(Theme.heartwood))
+
+        for leaf in leaves {
+            let lit = leaf.node.key == hovered
+            let color = lit ? Theme.heartwood : Leaf.color(leaf.node.l, dark: dark)
+            let length = leaf.length * (lit ? 1.06 : 1)
+            let t = CGAffineTransform(translationX: leaf.base.x, y: leaf.base.y).rotated(by: leaf.angle)
+            let shape = Leaf.path(length: length).applying(t)
+            ctx.fill(shape, with: .color(paper))
+            if lit { ctx.fill(shape, with: .color(Theme.heartwood.opacity(0.2))) }
+            let ink = leaf.node.built ? color : color.opacity(0.45)
+            ctx.stroke(shape, with: .color(ink), style: StrokeStyle(lineWidth: 1.15, lineJoin: .round))
+            ctx.stroke(Leaf.midrib(length: length).applying(t), with: .color(ink.opacity(0.7)),
+                       style: StrokeStyle(lineWidth: 0.7, lineCap: .round))
         }
 
-        // Leaves drawn like a botanical plate: paper fill, outline, veins.
-        // The hovered cluster is washed in amber.
-        for spot in leaves {
-            let lit = spot.node.key == hovered
-            let color = lit ? Theme.heartwood : Leaf.color(spot.node.l, dark: dark)
-            for leaf in spot.leaves {
-                let length = leaf.length * (lit ? 1.08 : 1)
-                let t = CGAffineTransform(translationX: leaf.at.x, y: leaf.at.y).rotated(by: leaf.angle)
-                let shape = Leaf.path(length: length).applying(t)
-                ctx.fill(shape, with: .color(paper))
-                if lit { ctx.fill(shape, with: .color(Theme.heartwood.opacity(0.22))) }
-                let ink = spot.node.built ? color : color.opacity(0.45)
-                ctx.stroke(shape, with: .color(ink), style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
-                ctx.stroke(Leaf.veins(length: length).applying(t), with: .color(ink.opacity(0.75)),
-                           style: StrokeStyle(lineWidth: 0.7, lineCap: .round))
-            }
-        }
-    }
-}
-
-extension Grove {
-    /// A tapering limb offset to both sides: the closed shape (for the paper
-    /// fill) and just its two edges (for the ink), so joints don't show seams.
-    static func contour(_ limb: Limb) -> (shape: Path, edges: Path) {
-        func normal(_ a: CGPoint, _ b: CGPoint) -> CGPoint {
-            let dx = b.x - a.x, dy = b.y - a.y
-            let len = max(sqrt(dx * dx + dy * dy), 0.001)
-            return CGPoint(x: -dy / len, y: dx / len)
-        }
-        let n0 = normal(limb.from, limb.control), n1 = normal(limb.control, limb.to)
-        let nm = normal(limb.from, limb.to)
-        let w0 = limb.startWidth / 2, w1 = limb.endWidth / 2, wm = (w0 + w1) / 2
-        func off(_ p: CGPoint, _ n: CGPoint, _ w: CGFloat) -> CGPoint { CGPoint(x: p.x + n.x * w, y: p.y + n.y * w) }
-        var shape = Path()
-        shape.move(to: off(limb.from, n0, w0))
-        shape.addQuadCurve(to: off(limb.to, n1, w1), control: off(limb.control, nm, wm))
-        shape.addLine(to: off(limb.to, n1, -w1))
-        shape.addQuadCurve(to: off(limb.from, n0, -w0), control: off(limb.control, nm, -wm))
-        shape.closeSubpath()
-        var edges = Path()
-        edges.move(to: off(limb.from, n0, w0))
-        edges.addQuadCurve(to: off(limb.to, n1, w1), control: off(limb.control, nm, wm))
-        edges.move(to: off(limb.from, n0, -w0))
-        edges.addQuadCurve(to: off(limb.to, n1, -w1), control: off(limb.control, nm, -wm))
-        return (shape, edges)
+        // Where the reading starts and where it is now.
+        ctx.draw(Text("primeira mensagem").font(.caption).foregroundStyle(.tertiary),
+                 at: CGPoint(x: start.x, y: start.y + 22), anchor: .top)
+        ctx.draw(Text("agora").font(.caption).foregroundStyle(.tertiary),
+                 at: CGPoint(x: end.x + 12, y: end.y), anchor: .leading)
     }
 }
