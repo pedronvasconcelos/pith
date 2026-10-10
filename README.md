@@ -38,7 +38,7 @@ Pith's read-only MCP server lets Claude Code, Cursor and Codex consult your memo
 
 ## The tree window
 
-**Window → Árvore** (⇧⌘B) draws the memory as a small grove. Each leaf is a line Pith reads: fresh green leaves are recent messages kept whole, golden ones are old conversation condensed. Pairs of leaves join into branches and branches into a trunk, one tree per complete part of the chat: the big tree is the past, the saplings are today. Hover a leaf to read it; click to open it down to the original messages.
+**Window → Árvore** (⇧⌘B) draws the memory as a small grove, in line art and the app's wood palette, like a botanical ink drawing. Each leaf is a line Pith reads: pale sapwood leaves are recent messages kept whole, dark heartwood ones are old conversation condensed. Pairs of leaves join into branches and branches into a trunk, one tree per complete part of the chat: the big tree is the past, the saplings are today. Hover a leaf to read it; click to open it down to the original messages.
 
 ## Layout
 
@@ -66,4 +66,4 @@ cd core && npm run sim               # 30k-message memory simulation, no API cal
 cd app && swift run                  # app against core/ in this checkout
 ```
 
-Dev-only environment variables: `PITH_DATA` (data folder), `PITH_VIEW_HIGH` / `PITH_VIEW_LOW` (view sizes), `PITH_SNAPSHOT` (write window captures to a PNG), `PITH_OPEN_SETTINGS` / `PITH_OPEN_BRANCHES` (open a window at launch), `PITH_SNAPSHOT_WINDOW` (which window to capture), `PITH_DEV_TOKEN` (fixed core token).
+Dev-only environment variables: `PITH_DATA` (data folder), `PITH_VIEW_HIGH` / `PITH_VIEW_LOW` (view sizes), `PITH_SNAPSHOT` (write window captures to a PNG), `PITH_OPEN_SETTINGS` / `PITH_OPEN_BRANCHES` (open a window at launch), `PITH_SNAPSHOT_WINDOW` (which window to capture), `PITH_APPEARANCE` (`light` or `dark`), `PITH_DEV_TOKEN` (fixed core token).

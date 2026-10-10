@@ -17,7 +17,8 @@ final class CoreProcess {
     }
 
     private var process: Process?
-    private let stdin = Pipe()
+    /// A fresh pipe per launch: a pipe whose process exited can't be reused.
+    private var stdin = Pipe()
 
     static var coreDirectory: URL {
         if let env = ProcessInfo.processInfo.environment["PITH_CORE_DIR"] { return URL(fileURLWithPath: env) }
@@ -98,6 +99,7 @@ final class CoreProcess {
         let helper = settings.helper != "auto" ? settings.helper : (anthropic != nil ? "claude-code" : codex != nil ? "codex" : "claude-code")
         env["PITH_HELPER"] = helper
         p.environment = env
+        stdin = Pipe()
         p.standardInput = stdin
         let out = Pipe(), err = Pipe()
         p.standardOutput = out

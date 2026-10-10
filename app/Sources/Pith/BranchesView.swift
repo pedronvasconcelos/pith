@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// The memory drawn as a small grove. Every message starts as a leaf; pairs
-/// of leaves join into twigs, twigs into branches, branches into a trunk.
-/// The leaves you see are the lines Pith actually reads: fresh green ones are
-/// recent messages kept whole, golden ones are old talk condensed. The big
-/// tree on the left is the past; the saplings on the right are today.
+/// The memory drawn as a small grove, in line art and the app's wood palette.
+/// Every message starts as a leaf; pairs of leaves join into twigs, twigs into
+/// branches, branches into a trunk. The leaves you see are the lines Pith
+/// actually reads: pale sapwood ones are recent messages kept whole, dark
+/// heartwood ones are old talk condensed. The big tree on the left is the
+/// past; the saplings on the right are today.
 struct BranchesView: View {
     @Environment(ChatStore.self) private var store
     @Environment(\.colorScheme) private var scheme
@@ -41,7 +42,7 @@ struct BranchesView: View {
                 .overlay(alignment: .bottom) { detail }
             } else {
                 VStack(spacing: 10) {
-                    Image(systemName: "tree").font(.system(size: 40)).foregroundStyle(Leaf.color(0))
+                    LeafIcon(color: Leaf.color(3, dark: scheme == .dark)).frame(width: 34, height: 34)
                     Text("Sua árvore ainda é uma semente.").font(.headline)
                     Text("Cada mensagem vira uma folha. Comece a conversar e veja ela crescer.")
                         .foregroundStyle(.secondary)
@@ -72,13 +73,7 @@ struct BranchesView: View {
     }
 
     private var sky: some View {
-        LinearGradient(
-            colors: scheme == .dark
-                ? [Color(red: 0.07, green: 0.09, blue: 0.13), Color(red: 0.11, green: 0.13, blue: 0.14)]
-                : [Color(red: 0.87, green: 0.93, blue: 0.98), Color(red: 0.97, green: 0.96, blue: 0.92)],
-            startPoint: .top, endPoint: .bottom
-        )
-        .ignoresSafeArea()
+        Color(nsColor: .windowBackgroundColor).ignoresSafeArea()
     }
 
     private func header(_ b: Branches, _ grove: Grove) -> some View {
@@ -88,8 +83,8 @@ struct BranchesView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 5) {
-                legend(level: 0, "Folhas verdes: mensagens recentes, inteiras")
-                legend(level: 5, "Folhas douradas: conversas antigas, resumidas")
+                legend(level: 0, "Folhas claras: mensagens recentes, inteiras")
+                legend(level: 7, "Folhas escuras: conversas antigas, resumidas")
             }
             Text("Passe o mouse numa folha para ler; clique para abrir.")
                 .font(.caption)
@@ -102,7 +97,7 @@ struct BranchesView: View {
 
     private func legend(level: Int, _ text: String) -> some View {
         HStack(spacing: 8) {
-            LeafIcon(color: Leaf.color(level)).frame(width: 12, height: 12)
+            LeafIcon(color: Leaf.color(level, dark: scheme == .dark)).frame(width: 14, height: 14)
             Text(text).font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -112,7 +107,7 @@ struct BranchesView: View {
         if let node = hovered {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    LeafIcon(color: Leaf.color(node.l)).frame(width: 12, height: 12)
+                    LeafIcon(color: Leaf.color(node.l, dark: scheme == .dark)).frame(width: 14, height: 14)
                     Text(node.n == 1 ? "Mensagem \(node.id)" : "\(node.n) mensagens resumidas")
                         .font(.callout.weight(.semibold))
                     Spacer()
@@ -136,23 +131,38 @@ struct BranchesView: View {
 // MARK: - Leaves
 
 enum Leaf {
-    /// Spring green for fresh messages, through gold, to autumn russet for the condensed past.
-    static func color(_ level: Int) -> Color {
-        let stops: [(Double, Double, Double)] = [
-            (0.47, 0.76, 0.38), (0.62, 0.78, 0.33), (0.80, 0.77, 0.30),
-            (0.89, 0.70, 0.25), (0.88, 0.56, 0.20), (0.78, 0.40, 0.18), (0.62, 0.30, 0.16),
-        ]
-        let t = min(Double(level) / 8, 1) * Double(stops.count - 1)
-        let a = stops[Int(t)], b = stops[min(Int(t) + 1, stops.count - 1)], f = t - t.rounded(.down)
-        return Color(red: a.0 + (b.0 - a.0) * f, green: a.1 + (b.1 - a.1) * f, blue: a.2 + (b.2 - a.2) * f)
+    /// The app's wood palette: sapwood for fresh messages, heartwood for the
+    /// condensed past. On light backgrounds the scale shifts darker so pale
+    /// sapwood still reads.
+    static func color(_ level: Int, dark: Bool) -> Color {
+        Theme.stratum(dark ? level : min(level + 3, 10))
     }
 
-    /// A leaf with its base at the origin, pointing along +x.
-    static func path(length: CGFloat) -> Path {
+    /// A leaf with its stalk at the origin, pointing along +x: a short
+    /// petiole, then an asymmetric blade with a drawn-out tip.
+    static func path(length L: CGFloat) -> Path {
+        var p = Path()
+        let base = CGPoint(x: L * 0.16, y: 0)
+        p.move(to: base)
+        p.addCurve(to: CGPoint(x: L, y: 0), control1: CGPoint(x: L * 0.30, y: -L * 0.36), control2: CGPoint(x: L * 0.78, y: -L * 0.24))
+        p.addCurve(to: base, control1: CGPoint(x: L * 0.74, y: L * 0.26), control2: CGPoint(x: L * 0.34, y: L * 0.34))
+        p.closeSubpath()
+        return p
+    }
+
+    /// Petiole, midrib and three pairs of side veins.
+    static func veins(length L: CGFloat) -> Path {
         var p = Path()
         p.move(to: .zero)
-        p.addQuadCurve(to: CGPoint(x: length, y: 0), control: CGPoint(x: length * 0.45, y: -length * 0.42))
-        p.addQuadCurve(to: .zero, control: CGPoint(x: length * 0.45, y: length * 0.42))
+        p.addQuadCurve(to: CGPoint(x: L * 0.9, y: -L * 0.02), control: CGPoint(x: L * 0.5, y: L * 0.03))
+        for t in [0.36, 0.54, 0.70] as [CGFloat] {
+            let at = CGPoint(x: L * t, y: L * 0.012)
+            let reach = L * 0.2 * (1.1 - t)
+            p.move(to: at)
+            p.addQuadCurve(to: CGPoint(x: at.x + reach * 1.1, y: -reach * 1.25), control: CGPoint(x: at.x + reach * 0.3, y: -reach * 0.7))
+            p.move(to: at)
+            p.addQuadCurve(to: CGPoint(x: at.x + reach * 1.1, y: reach * 1.3), control: CGPoint(x: at.x + reach * 0.3, y: reach * 0.75))
+        }
         return p
     }
 }
@@ -161,8 +171,10 @@ struct LeafIcon: View {
     let color: Color
     var body: some View {
         Canvas { ctx, size in
+            let length = size.width * 1.35
             let t = CGAffineTransform(translationX: 1, y: size.height - 1).rotated(by: -.pi / 4)
-            ctx.fill(Leaf.path(length: size.width * 1.3).applying(t), with: .color(color))
+            ctx.stroke(Leaf.path(length: length).applying(t), with: .color(color), lineWidth: 1.1)
+            ctx.stroke(Leaf.veins(length: length).applying(t), with: .color(color.opacity(0.8)), lineWidth: 0.6)
         }
     }
 }
@@ -180,7 +192,7 @@ private struct Seeded {
 }
 
 struct Grove {
-    struct Limb { let from: CGPoint; let to: CGPoint; let control: CGPoint; let width: CGFloat }
+    struct Limb { let from: CGPoint; let to: CGPoint; let control: CGPoint; let startWidth: CGFloat; let endWidth: CGFloat }
     struct LeafSpot: Identifiable {
         let node: BranchNode
         let center: CGPoint
@@ -191,6 +203,7 @@ struct Grove {
 
     var limbs: [Limb] = []
     var leaves: [LeafSpot] = []
+    var trunks: [CGPoint] = []
     var ground: CGFloat = 0
     var size: CGSize = .zero
 
@@ -203,7 +216,7 @@ struct Grove {
             .filter { byKey["\($0.l + 1):\($0.i >> 1)"] == nil }
             .sorted { $0.id < $1.id }
 
-        let unit = 30 * scale
+        let unit = 34 * scale
         let tallest = CGFloat(roots.map(\.l).max() ?? 0)
         let height = unit * (2.6 + tallest * 0.95) + 220
         ground = height - 60
@@ -214,6 +227,7 @@ struct Grove {
             let crown = unit * (1.4 + CGFloat(root.l) * 1.15)
             x += crown
             let base = CGPoint(x: x, y: ground)
+            trunks.append(base)
             let trunk = unit * (1.3 + CGFloat(root.l) * 0.35)
             grow(root, from: base, angle: -.pi / 2, length: trunk, top: root.l, byKey: byKey, cut: cutKeys, depth: 0)
             x += crown
@@ -222,15 +236,17 @@ struct Grove {
     }
 
     private mutating func grow(_ node: BranchNode, from: CGPoint, angle: CGFloat, length: CGFloat,
-                               top: Int, byKey: [String: BranchNode], cut: Set<String>, depth: Int) {
+                               top: Int, byKey: [String: BranchNode], cut: Set<String>, depth: Int,
+                               startWidth: CGFloat? = nil) {
         var rng = Seeded(node.l, node.i)
         let bend = (rng.next() - 0.5) * 0.25
         let to = CGPoint(x: from.x + cos(angle) * length, y: from.y + sin(angle) * length)
         let mid = CGPoint(x: (from.x + to.x) / 2 + cos(angle + .pi / 2) * length * bend,
                           y: (from.y + to.y) / 2 + sin(angle + .pi / 2) * length * bend)
         // Thickness follows how much of the conversation flows through here.
-        let width = max(1.2, 2.2 * sqrt(CGFloat(node.n))) * 0.55 + CGFloat(node.l) * 0.5
-        limbs.append(Limb(from: from, to: to, control: mid, width: width))
+        // Wood tapers from the trunk to the twigs.
+        let width = 1.6 + CGFloat(node.l) * 1.9
+        limbs.append(Limb(from: from, to: to, control: mid, startWidth: startWidth ?? width * 1.25, endWidth: width * 0.82))
 
         if cut.contains(node.key) {
             addLeaves(node, at: to, angle: angle, rng: &rng)
@@ -248,63 +264,97 @@ struct Grove {
             var a = angle + side * spread + (rng.next() - 0.5) * 0.12
             a = a * 0.86 + (-.pi / 2) * 0.14
             let next = length * (0.74 + 0.08 * rng.next())
-            grow(child, from: to, angle: a, length: next, top: top, byKey: byKey, cut: cut, depth: depth + 1)
+            grow(child, from: to, angle: a, length: next, top: top, byKey: byKey, cut: cut, depth: depth + 1,
+                 startWidth: width * 0.82)
         }
     }
 
     private mutating func addLeaves(_ node: BranchNode, at tip: CGPoint, angle: CGFloat, rng: inout Seeded) {
         // Condensed leaves are bigger clusters: they hold more of the past.
-        let count = 5 + min(node.l, 6)
-        let radius = 11 + CGFloat(node.l) * 2.4
+        let count = 3 + min(node.l / 2, 3)
+        let radius = 20 + CGFloat(node.l) * 3
         var spots: [(CGPoint, CGFloat, CGFloat)] = []
         for k in 0..<count {
-            let a = angle + (CGFloat(k) / CGFloat(count) - 0.5) * 2.6 + (rng.next() - 0.5) * 0.4
-            let r = radius * (0.25 + 0.5 * rng.next())
-            let at = CGPoint(x: tip.x + cos(a) * r * 0.5, y: tip.y + sin(a) * r * 0.5)
-            spots.append((at, a, 9 + CGFloat(node.l) * 1.3 + rng.next() * 5))
+            let a = angle + (CGFloat(k) / CGFloat(max(count - 1, 1)) - 0.5) * 2.2 + (rng.next() - 0.5) * 0.5
+            let at = CGPoint(x: tip.x + cos(a) * 2, y: tip.y + sin(a) * 2)
+            spots.append((at, a, 22 + CGFloat(node.l) * 2.6 + rng.next() * 8))
         }
         leaves.append(LeafSpot(node: node, center: tip, radius: radius, leaves: spots))
     }
 
     func draw(_ ctx: GraphicsContext, size: CGSize, hovered: String?, dark: Bool) {
-        // A soft hill for the grove to stand on.
-        var hill = Path()
-        hill.move(to: CGPoint(x: 0, y: ground + 6))
-        hill.addCurve(to: CGPoint(x: size.width, y: ground + 6),
-                      control1: CGPoint(x: size.width * 0.3, y: ground - 18),
-                      control2: CGPoint(x: size.width * 0.7, y: ground - 10))
-        hill.addLine(to: CGPoint(x: size.width, y: size.height))
-        hill.addLine(to: CGPoint(x: 0, y: size.height))
-        hill.closeSubpath()
-        let grass = dark ? Color(red: 0.16, green: 0.24, blue: 0.16) : Color(red: 0.62, green: 0.78, blue: 0.48)
-        ctx.fill(hill, with: .color(grass))
+        // One hairline of ground.
+        var groundLine = Path()
+        groundLine.move(to: CGPoint(x: 32, y: ground))
+        groundLine.addLine(to: CGPoint(x: size.width - 32, y: ground))
+        ctx.stroke(groundLine, with: .color(.secondary.opacity(0.35)), lineWidth: 1)
 
-        let bark = dark ? Color(red: 0.55, green: 0.40, blue: 0.28) : Color(red: 0.45, green: 0.31, blue: 0.20)
+        // Wood in contour: both edges of each limb, filled with the paper
+        // so crossings read like an ink drawing; twigs are a single line.
+        let wood = Theme.stratum(dark ? 4 : 7)
+        let paper = Color(nsColor: .windowBackgroundColor)
         for limb in limbs {
-            var p = Path()
-            p.move(to: limb.from)
-            p.addQuadCurve(to: limb.to, control: limb.control)
-            ctx.stroke(p, with: .color(bark), style: StrokeStyle(lineWidth: limb.width, lineCap: .round))
+            if limb.startWidth < 4.5 {
+                var p = Path()
+                p.move(to: limb.from)
+                p.addQuadCurve(to: limb.to, control: limb.control)
+                ctx.stroke(p, with: .color(wood), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
+                continue
+            }
+            let (outline, edges) = Self.contour(limb)
+            ctx.fill(outline, with: .color(paper))
+            ctx.stroke(edges, with: .color(wood), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
+        }
+        // The pith: an amber dot where each tree meets the ground.
+        for base in trunks {
+            let r: CGFloat = 3
+            ctx.fill(Path(ellipseIn: CGRect(x: base.x - r, y: base.y - r, width: r * 2, height: r * 2)), with: .color(Theme.heartwood))
         }
 
+        // Leaves drawn like a botanical plate: paper fill, outline, veins.
+        // The hovered cluster is washed in amber.
         for spot in leaves {
-            let color = Leaf.color(spot.node.l)
             let lit = spot.node.key == hovered
-            if lit {
-                let r = spot.radius + 10
-                ctx.fill(Path(ellipseIn: CGRect(x: spot.center.x - r, y: spot.center.y - r, width: r * 2, height: r * 2)),
-                         with: .color(color.opacity(0.22)))
-            }
+            let color = lit ? Theme.heartwood : Leaf.color(spot.node.l, dark: dark)
             for leaf in spot.leaves {
+                let length = leaf.length * (lit ? 1.08 : 1)
                 let t = CGAffineTransform(translationX: leaf.at.x, y: leaf.at.y).rotated(by: leaf.angle)
-                let shape = Leaf.path(length: leaf.length * (lit ? 1.15 : 1)).applying(t)
-                ctx.fill(shape, with: .color(spot.node.built ? color : color.opacity(0.45)))
-                // A midrib makes them read as leaves, not dots.
-                var rib = Path()
-                rib.move(to: .zero)
-                rib.addLine(to: CGPoint(x: leaf.length * 0.8, y: 0))
-                ctx.stroke(rib.applying(t), with: .color(.black.opacity(0.12)), lineWidth: 0.6)
+                let shape = Leaf.path(length: length).applying(t)
+                ctx.fill(shape, with: .color(paper))
+                if lit { ctx.fill(shape, with: .color(Theme.heartwood.opacity(0.22))) }
+                let ink = spot.node.built ? color : color.opacity(0.45)
+                ctx.stroke(shape, with: .color(ink), style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
+                ctx.stroke(Leaf.veins(length: length).applying(t), with: .color(ink.opacity(0.75)),
+                           style: StrokeStyle(lineWidth: 0.7, lineCap: .round))
             }
         }
+    }
+}
+
+extension Grove {
+    /// A tapering limb offset to both sides: the closed shape (for the paper
+    /// fill) and just its two edges (for the ink), so joints don't show seams.
+    static func contour(_ limb: Limb) -> (shape: Path, edges: Path) {
+        func normal(_ a: CGPoint, _ b: CGPoint) -> CGPoint {
+            let dx = b.x - a.x, dy = b.y - a.y
+            let len = max(sqrt(dx * dx + dy * dy), 0.001)
+            return CGPoint(x: -dy / len, y: dx / len)
+        }
+        let n0 = normal(limb.from, limb.control), n1 = normal(limb.control, limb.to)
+        let nm = normal(limb.from, limb.to)
+        let w0 = limb.startWidth / 2, w1 = limb.endWidth / 2, wm = (w0 + w1) / 2
+        func off(_ p: CGPoint, _ n: CGPoint, _ w: CGFloat) -> CGPoint { CGPoint(x: p.x + n.x * w, y: p.y + n.y * w) }
+        var shape = Path()
+        shape.move(to: off(limb.from, n0, w0))
+        shape.addQuadCurve(to: off(limb.to, n1, w1), control: off(limb.control, nm, wm))
+        shape.addLine(to: off(limb.to, n1, -w1))
+        shape.addQuadCurve(to: off(limb.from, n0, -w0), control: off(limb.control, nm, -wm))
+        shape.closeSubpath()
+        var edges = Path()
+        edges.move(to: off(limb.from, n0, w0))
+        edges.addQuadCurve(to: off(limb.to, n1, w1), control: off(limb.control, nm, wm))
+        edges.move(to: off(limb.from, n0, -w0))
+        edges.addQuadCurve(to: off(limb.to, n1, -w1), control: off(limb.control, nm, -wm))
+        return (shape, edges)
     }
 }

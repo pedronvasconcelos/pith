@@ -40,6 +40,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Run as a regular app even when launched as a bare executable.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
+        // Development: PITH_APPEARANCE=light|dark forces the appearance.
+        switch ProcessInfo.processInfo.environment["PITH_APPEARANCE"] {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+        default: break
+        }
         // Development: PITH_SNAPSHOT=/path.png keeps writing a capture of the window.
         if let path = ProcessInfo.processInfo.environment["PITH_SNAPSHOT"] {
             Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
