@@ -4,6 +4,7 @@ struct ContentView: View {
     @Environment(ChatStore.self) private var store
     @AppStorage("showMemory") private var showMemory = true
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
@@ -41,6 +42,15 @@ struct ContentView: View {
 
             ToolbarItem(placement: .primaryAction) {
                 Button {
+                    openWindow(id: "branches")
+                } label: {
+                    Label("Árvore", systemImage: "tree")
+                }
+                .help("Ver a árvore da memória")
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Button {
                     withAnimation(.smooth) { showMemory.toggle() }
                 } label: {
                     Label("Memória", systemImage: "square.stack.3d.down.right")
@@ -53,6 +63,7 @@ struct ContentView: View {
         .task {
             // Development: PITH_OPEN_SETTINGS opens Settings at launch.
             if ProcessInfo.processInfo.environment["PITH_OPEN_SETTINGS"] != nil { openSettings() }
+            if ProcessInfo.processInfo.environment["PITH_OPEN_BRANCHES"] != nil { openWindow(id: "branches") }
         }
     }
 }

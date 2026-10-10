@@ -21,6 +21,12 @@ struct PithApp: App {
             CommandGroup(replacing: .newItem) {}
         }
 
+        Window("Árvore", id: "branches") {
+            BranchesView().environment(store)
+        }
+        .defaultSize(width: 1100, height: 680)
+        .keyboardShortcut("b", modifiers: [.command, .shift])
+
         Settings {
             SettingsView().environment(store)
         }
@@ -34,6 +40,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Run as a regular app even when launched as a bare executable.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
+        // Development: PITH_APPEARANCE=light|dark forces the appearance.
+        switch ProcessInfo.processInfo.environment["PITH_APPEARANCE"] {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+        default: break
+        }
         // Development: PITH_SNAPSHOT=/path.png keeps writing a capture of the window.
         if let path = ProcessInfo.processInfo.environment["PITH_SNAPSHOT"] {
             Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
@@ -44,9 +56,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private static func snapshot(to path: String) {
-        let settings = ProcessInfo.processInfo.environment["PITH_OPEN_SETTINGS"] != nil
-        guard let window = NSApp.windows.first(where: { $0.isVisible && (settings ? ($0.identifier?.rawValue ?? "").localizedCaseInsensitiveContains("settings") : $0.canBecomeMain) })
-        else { return }
+        // PITH_SNAPSHOT_WINDOW picks a window by identifier (e.g. "settings", "branches").
+        let wanted = ProcessInfo.processInfo.environment["PITH_SNAPSHOT_WINDOW"]
+        guard let window = NSApp.windows.first(where: { win in
+            guard win.isVisible else { return false }
+            guard let wanted else { return win.canBecomeMain }
+            return (win.identifier?.rawValue ?? "").localizedCaseInsensitiveContains(wanted)
+        }) else { return }
         // CGWindowListCreateImage is gone from the SDK but still answers for our own windows.
         typealias Capture = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
         guard let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else { return }
